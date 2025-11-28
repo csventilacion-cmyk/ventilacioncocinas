@@ -25,7 +25,7 @@ st.markdown("""
 if 'equipments' not in st.session_state: st.session_state['equipments'] = []
 if 've_counter' not in st.session_state: st.session_state['ve_counter'] = 1
 
-# --- BASE DE DATOS GEOGRÁFICA (CORREGIDA) ---
+# --- BASE DE DATOS GEOGRÁFICA (SINTAXIS CORREGIDA) ---
 db_geo = {
     "Aguascalientes": {
         "Aguascalientes": {"alt": 1888, "temp": 26},
@@ -34,40 +34,4 @@ db_geo = {
     },
     "Baja California": {
         "Tijuana": {"alt": 20, "temp": 26},
-        "Mexicali": {"alt": 8, "temp": 42},
-        "Ensenada": {"alt": 10, "temp": 24}
-    },
-    "Baja California Sur": {
-        "La Paz": {"alt": 27, "temp": 30},
-        "Cabo San Lucas": {"alt": 10, "temp": 29},
-        "San José del Cabo": {"alt": 10, "temp": 29}
-    },
-    "Campeche": {
-        "Campeche": {"alt": 10, "temp": 34},
-        "Ciudad del Carmen": {"alt": 2, "temp": 35},
-        "Champotón": {"alt": 10, "temp": 34}
-    },
-    "Chiapas": {
-        "Tuxtla Gutiérrez": {"alt": 522, "temp": 32},
-        "Tapachula": {"alt": 170, "temp": 34},
-        "San Cristóbal": {"alt": 2120, "temp": 20}
-    },
-    "Chihuahua": {
-        "Chihuahua": {"alt": 1435, "temp": 30},
-        "Cd. Juárez": {"alt": 1120, "temp": 32},
-        "Delicias": {"alt": 1170, "temp": 31}
-    },
-    "Ciudad de México": {
-        "CDMX (Centro)": {"alt": 2240, "temp": 24},
-        "Santa Fe": {"alt": 2500, "temp": 21},
-        "Polanco": {"alt": 2250, "temp": 24}
-    },
-    "Coahuila": {
-        "Saltillo": {"alt": 1600, "temp": 28},
-        "Torreón": {"alt": 1120, "temp": 32},
-        "Monclova": {"alt": 600, "temp": 34}
-    },
-    "Colima": {
-        "Colima": {"alt": 490, "temp": 32},
-        "Manzanillo": {"alt": 5, "temp": 32},
-        "Tecomán":
+        "Mexicali": {"
