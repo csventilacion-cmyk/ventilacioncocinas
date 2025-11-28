@@ -4,9 +4,10 @@ import math
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="CS Ventilación - Calculadora Cocinas",
+    page_title="CS Ventilación - Calculadora Pro",
     page_icon="🔥",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="expanded"
 )
 
 # --- ESTILOS VISUALES ---
@@ -21,10 +22,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- INICIALIZACIÓN DE ESTADO ---
-if 'equipments' not in st.session_state: st.session_state['equipments'] = []
-if 've_counter' not in st.session_state: st.session_state['ve_counter'] = 1
+if 'equipments' not in st.session_state:
+    st.session_state['equipments'] = []
+if 've_counter' not in st.session_state:
+    st.session_state['ve_counter'] = 1
 
-# --- BASE DE DATOS GEOGRÁFICA (Actualizada con Altitud/Temp) ---
+# --- BASE DE DATOS GEOGRÁFICA ---
 db_geo = {
     "Sinaloa": {"Culiacán": {"alt": 54, "temp": 36}, "Mazatlán": {"alt": 10, "temp": 32}, "Los Mochis": {"alt": 10, "temp": 35}},
     "Ciudad de México": {"CDMX (Centro)": {"alt": 2240, "temp": 24}, "Santa Fe": {"alt": 2500, "temp": 21}, "Polanco": {"alt": 2250, "temp": 24}},
@@ -46,12 +49,17 @@ db_geo = {
 def get_auto_dims(cfm_target, velocity_target=2000):
     if cfm_target <= 0: return 6, 6
     target_area = cfm_target / velocity_target
+    
+    # Circular
     diam_ideal = math.sqrt(target_area * 4 / math.pi) * 12
     diam_final = round(diam_ideal / 2) * 2
     if diam_final < 4: diam_final = 4
+    
+    # Rectangular
     side_ideal = math.sqrt(target_area) * 12
     side_final = round(side_ideal / 2) * 2
     if side_final < 4: side_final = 4
+    
     return int(side_final), int(diam_final)
 
 # --- SIDEBAR ---
@@ -60,43 +68,39 @@ with st.sidebar:
         st.image("logo.jpg", use_column_width=True)
     except:
         st.header("CS VENTILACIÓN")
-        st.caption("Nota: Sube 'logo.jpg' a GitHub.")
+        st.caption("Sube 'logo.jpg' a GitHub.")
     
     st.markdown("---")
     
-    # MOD 1: Menú abierto por default
-    with st.expander("📍 Datos del Proyecto", expanded=True):
-        nombre_proyecto = st.text_input("Nombre del Proyecto", placeholder="Ej. Restaurante La Plaza")
+    with st.expander("📍 Detalles del Proyecto", expanded=True):
+        nombre_proyecto = st.text_input("Nombre del Proyecto", placeholder="Ej. Restaurante Centro")
         pais = st.selectbox("País", ["México", "Otro"])
         
-        ciudad_selec = ""
-        estado_selec = ""
-        alt_val = 0
-        temp_val = 25
+        alt_res = 0
+        temp_res = 25
+        ciudad_str = ""
         
         if pais == "México":
-            estado_selec = st.selectbox("Estado", list(db_geo.keys()))
-            ciudad_selec = st.selectbox("Ciudad", list(db_geo[estado_selec].keys()))
-            
-            # MOD 1: Mostrar Altitud y Temperatura
-            datos = db_geo[estado_selec][ciudad_selec]
-            alt_val = datos['alt']
-            temp_val = datos['temp']
+            estado = st.selectbox("Estado", list(db_geo.keys()))
+            ciudad = st.selectbox("Ciudad", list(db_geo[estado].keys()))
+            datos = db_geo[estado][ciudad]
+            alt_res = datos['alt']
+            temp_res = datos['temp']
+            ciudad_str = f"{ciudad}, {estado}"
             
             c1, c2 = st.columns(2)
-            with c1: st.metric("Altitud", f"{alt_val} m")
-            with c2: st.metric("Temp", f"{temp_val}°C")
-            
+            with c1: st.metric("Altitud", f"{alt_res} m")
+            with c2: st.metric("Temp", f"{temp_res}°C")
         else:
-            ciudad_selec = st.text_input("Ciudad / Ubicación")
-            alt_val = st.number_input("Altitud (msnm)", 0)
-            temp_val = st.number_input("Temperatura (°C)", 25)
-        
+            ciudad_str = st.text_input("Ciudad / Ubicación")
+            alt_res = st.number_input("Altitud (msnm)", 0)
+            temp_res = st.number_input("Temperatura (°C)", 25)
+            
         st.session_state['project_data'] = {
             "nombre": nombre_proyecto,
-            "ubicacion": f"{ciudad_selec}, {estado_selec}" if pais == "México" else ciudad_selec,
-            "altitud": alt_val,
-            "temp": temp_val
+            "ubicacion": f"{ciudad_str}",
+            "alt": alt_res,
+            "temp": temp_res
         }
     
     st.markdown("---")
@@ -104,20 +108,15 @@ with st.sidebar:
     if len(st.session_state['equipments']) > 0:
         for item in st.session_state['equipments']:
             st.caption(f"🔹 {item['tag']} | {item['cfm']} CFM")
+        
         if st.button("🗑️ Borrar Lista"):
             st.session_state['equipments'] = []
             st.session_state['ve_counter'] = 1
             st.rerun()
-    else:
-        st.caption("Sin equipos.")
 
 # --- TÍTULO PRINCIPAL ---
 st.markdown('<div class="main-header">CALCULADORA PARA COCINAS COMERCIALES</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-header">Partida Actual: <strong>VE-{st.session_state["ve_counter"]:02d}</strong></div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# --- TABS DE TRABAJO ---
-tab1, tab2, tab3 = st.tabs(["1️⃣ Caudal (Campana)", "2️⃣ Ductos (Velocidad)", "3️⃣ Presión y Cierre"])
-
-# --- TAB 1: CÁLCULO DE CAUDAL ---
-with
+# --- TABS DE
