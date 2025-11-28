@@ -4,7 +4,7 @@ import math
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="CS Ventilación - Calculadora Pro",
+    page_title="CS Ventilación - Calculadora Cocinas",
     page_icon="❄️",
     layout="centered"
 )
@@ -15,7 +15,7 @@ st.markdown("""
     .main-header {
         font-size: 28px;
         font-weight: bold;
-        color: #333; 
+        color: #0E4F8F; 
         text-align: center;
         margin-bottom: 0px;
     }
@@ -58,171 +58,190 @@ st.markdown("""
 
 # --- INICIALIZACIÓN DE ESTADO ---
 if 'equipments' not in st.session_state:
-    st.session_state['equipments'] = []  # Lista para guardar VE-01, VE-02...
+    st.session_state['equipments'] = []
 if 've_counter' not in st.session_state:
-    st.session_state['ve_counter'] = 1   # Contador de partidas
+    st.session_state['ve_counter'] = 1
 
-# --- BASE DE DATOS GEOGRÁFICA (SIMPLIFICADA) ---
+# --- BASE DE DATOS GEOGRÁFICA (PRINCIPALES CIUDADES POR ESTADO) ---
 ciudades_db = {
-    "Culiacán, Sinaloa": {"alt": 54, "temp": 35},
-    "Ciudad de México": {"alt": 2240, "temp": 24},
-    "Monterrey, Nuevo León": {"alt": 540, "temp": 32},
-    "Guadalajara, Jalisco": {"alt": 1566, "temp": 28},
-    "Tijuana, Baja California": {"alt": 20, "temp": 26},
-    "Cancún, Quintana Roo": {"alt": 10, "temp": 30},
-    "Hermosillo, Sonora": {"alt": 210, "temp": 40},
-    "Mérida, Yucatán": {"alt": 10, "temp": 36},
-    "Puebla, Puebla": {"alt": 2135, "temp": 25},
-    "Querétaro, Querétaro": {"alt": 1820, "temp": 28}
+    "Aguascalientes": ["Aguascalientes", "Jesús María", "Calvillo"],
+    "Baja California": ["Tijuana", "Mexicali", "Ensenada"],
+    "Baja California Sur": ["La Paz", "Cabo San Lucas", "San José del Cabo"],
+    "Campeche": ["Campeche", "Ciudad del Carmen", "Champotón"],
+    "Chiapas": ["Tuxtla Gutiérrez", "Tapachula", "San Cristóbal de las Casas"],
+    "Chihuahua": ["Ciudad Juárez", "Chihuahua", "Delicias"],
+    "Ciudad de México": ["CDMX (Centro)", "Santa Fe", "Polanco"],
+    "Coahuila": ["Saltillo", "Torreón", "Monclova"],
+    "Colima": ["Colima", "Manzanillo", "Tecomán"],
+    "Durango": ["Durango", "Gómez Palacio", "Lerdo"],
+    "Guanajuato": ["León", "Irapuato", "Celaya"],
+    "Guerrero": ["Acapulco", "Chilpancingo", "Iguala"],
+    "Hidalgo": ["Pachuca", "Tulancingo", "Tula"],
+    "Jalisco": ["Guadalajara", "Zapopan", "Puerto Vallarta"],
+    "Estado de México": ["Toluca", "Ecatepec", "Naucalpan"],
+    "Michoacán": ["Morelia", "Uruapan", "Zamora"],
+    "Morelos": ["Cuernavaca", "Jiutepec", "Cuautla"],
+    "Nayarit": ["Tepic", "Xalisco", "Bahía de Banderas"],
+    "Nuevo León": ["Monterrey", "San Pedro Garza García", "Apodaca"],
+    "Oaxaca": ["Oaxaca de Juárez", "Tuxtepec", "Salina Cruz"],
+    "Puebla": ["Puebla", "Tehuacán", "Cholula"],
+    "Querétaro": ["Santiago de Querétaro", "San Juan del Río", "El Marqués"],
+    "Quintana Roo": ["Cancún", "Playa del Carmen", "Chetumal"],
+    "San Luis Potosí": ["San Luis Potosí", "Soledad de Graciano Sánchez", "Ciudad Valles"],
+    "Sinaloa": ["Culiacán", "Mazatlán", "Los Mochis"],
+    "Sonora": ["Hermosillo", "Ciudad Obregón", "Nogales"],
+    "Tabasco": ["Villahermosa", "Cárdenas", "Comalcalco"],
+    "Tamaulipas": ["Reynosa", "Matamoros", "Nuevo Laredo"],
+    "Tlaxcala": ["Tlaxcala", "Apizaco", "Huamantla"],
+    "Veracruz": ["Veracruz", "Xalapa", "Coatzacoalcos"],
+    "Yucatán": ["Mérida", "Kanasín", "Valladolid"],
+    "Zacatecas": ["Zacatecas", "Guadalupe", "Fresnillo"]
 }
 
-# --- SIDEBAR: LOGO Y DATOS DE PROYECTO ---
+# --- FUNCIONES DE CÁLCULO ---
+def get_auto_dims(cfm_target, velocity_target=2000):
+    """Calcula dimensiones óptimas (múltiplos de 2) para acercarse a 2000 FPM"""
+    target_area = cfm_target / velocity_target # ft2
+    
+    # Circular
+    diam_ideal = math.sqrt(target_area * 4 / math.pi) * 12 # inches
+    diam_final = round(diam_ideal / 2) * 2 # Redondear al par más cercano
+    if diam_final < 4: diam_final = 4
+    
+    # Rectangular (Cuadrado por defecto)
+    side_ideal = math.sqrt(target_area) * 12 # inches
+    side_final = round(side_ideal / 2) * 2
+    if side_final < 4: side_final = 4
+    
+    return int(side_final), int(diam_final)
+
+# --- SIDEBAR ---
 with st.sidebar:
-    # LOGO (Asegúrate de subir 'logo.jpg' a tu GitHub)
     try:
         st.image("logo.jpg", use_column_width=True) 
     except:
-        st.header("CS VENTILACIÓN") # Texto de respaldo si no carga la imagen
+        st.header("CS VENTILACIÓN")
     
     st.markdown("---")
     st.header("📍 Datos del Proyecto")
     
+    nombre_proyecto = st.text_input("Nombre del Proyecto", placeholder="Ej. Restaurante La Plaza")
     pais = st.selectbox("País", ["México", "Otro"])
     
+    ciudad_selec = ""
+    estado_selec = ""
+    
     if pais == "México":
-        ciudad_select = st.selectbox("Ciudad / Zona", list(ciudades_db.keys()))
-        datos_ciudad = ciudades_db[ciudad_select]
-        st.caption(f"Altitud: {datos_ciudad['alt']} msnm | Temp. Prom: {datos_ciudad['temp']}°C")
+        estado_selec = st.selectbox("Estado", list(ciudades_db.keys()))
+        ciudad_selec = st.selectbox("Ciudad", ciudades_db[estado_selec])
     else:
-        ciudad_select = st.text_input("Ciudad")
-        altitud_manual = st.number_input("Altitud (msnm)", value=0)
-        temp_manual = st.number_input("Temperatura (°C)", value=25)
-        datos_ciudad = {"alt": altitud_manual, "temp": temp_manual}
-        
-    st.session_state['location_data'] = {
-        "ciudad": ciudad_select,
-        "alt": datos_ciudad['alt'],
-        "temp": datos_ciudad['temp']
+        ciudad_selec = st.text_input("Ciudad / Ubicación")
+    
+    st.session_state['project_data'] = {
+        "nombre": nombre_proyecto,
+        "ubicacion": f"{ciudad_selec}, {estado_selec}" if pais == "México" else ciudad_selec
     }
     
     st.markdown("---")
-    st.markdown("**Lista de Equipos:**")
+    st.markdown("**Equipos Guardados:**")
     if len(st.session_state['equipments']) > 0:
         for item in st.session_state['equipments']:
-            st.text(f"{item['tag']}: {item['cfm']} CFM")
+            st.caption(f"🔹 {item['tag']} | {item['cfm']} CFM")
         
         if st.button("🗑️ Borrar Lista"):
             st.session_state['equipments'] = []
             st.session_state['ve_counter'] = 1
             st.rerun()
     else:
-        st.caption("No hay equipos guardados aún.")
+        st.caption("Sin equipos.")
 
 # --- TÍTULO PRINCIPAL ---
-st.markdown('<div class="main-header">CALCULADORA TÉCNICA</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">CALCULADORA PARA COCINAS COMERCIALES</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-header">Partida Actual: <strong>VE-{st.session_state["ve_counter"]:02d}</strong></div>', unsafe_allow_html=True)
 st.markdown("---")
 
-# --- FUNCIONES DE CÁLCULO (MÉTODO INDUSTRIAL VENTILATION) ---
-def calcular_caudal_metrico(largo_m, ancho_m, distancia_m, tipo_app, tipo_inst):
-    # 1. Determinar Perímetro Libre (P)
-    if tipo_inst == "Isla (4 lados abiertos)":
-        perimetro = (2 * largo_m) + (2 * ancho_m)
-    elif tipo_inst == "Pared (3 lados abiertos)":
-        perimetro = (2 * ancho_m) + largo_m
-    elif tipo_inst == "Esquina (2 lados abiertos)":
-        perimetro = ancho_m + largo_m
-    else:
-        perimetro = (2 * largo_m) + (2 * ancho_m) # Default isla
-        
-    # 2. Velocidad de Captación (Vc) según Manual
-    velocidades = {
-        "Light Duty (Vapores ligeros)": 0.25,
-        "Medium Duty (Cocción estándar)": 0.35,
-        "Heavy Duty (Grasa abundante)": 0.40,
-        "Extra Heavy Duty (Wok/Carbón)": 0.50
-    }
-    vc = velocidades.get(tipo_app, 0.25)
-    
-    # 3. Fórmula Q = P * D * Vc * 3600 (para m3/hr) -> Luego a CFM
-    # Formula Industrial Ventilation: Q = Vc * (1.4 * P * D)? 
-    # Usaremos la logica de tu manual (P * D * Vc) asumiendo área de paso teórica
-    # Nota: Tu manual pag 33 dice: Q = (Suma Perimetro) * (Dist Captacion) * (Velocidad * 3600)
-    
-    area_paso = perimetro * distancia_m
-    caudal_m3s = area_paso * vc
-    caudal_m3hr = caudal_m3s * 3600
-    caudal_cfm = caudal_m3hr / 1.699 # Factor conversión m3/hr a CFM
-    
-    return int(caudal_cfm), vc, perimetro
-
 # --- TABS DE TRABAJO ---
-tab1, tab2, tab3 = st.tabs(["1️⃣ Caudal (Campana)", "2️⃣ Ductos", "3️⃣ Presión y Cierre"])
+tab1, tab2, tab3 = st.tabs(["1️⃣ Caudal (Campana)", "2️⃣ Ductos (Velocidad)", "3️⃣ Presión y Cierre"])
 
-# --- TAB 1: CÁLCULO DE CAMPANA ---
+# --- TAB 1: CÁLCULO DE CAUDAL ---
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Dimensiones Campana (Metros)**")
         largo = st.number_input("Largo (m)", min_value=0.5, value=2.0, step=0.1)
         ancho = st.number_input("Ancho (m)", min_value=0.5, value=1.0, step=0.1)
-        distancia = st.number_input("Distancia de Captación (m)", min_value=0.1, value=1.0, step=0.1, help="Distancia vertical desde la fuente de calor hasta el filtro")
+        distancia = st.number_input("Distancia de Captación (m)", min_value=0.1, value=1.0, step=0.05)
         
     with col2:
         st.markdown("**Condiciones de Operación**")
-        instalacion = st.selectbox("Instalación", ["Pared (3 lados abiertos)", "Isla (4 lados abiertos)", "Esquina (2 lados abiertos)"])
-        aplicacion = st.selectbox("Aplicación", 
-                                  ["Light Duty (Vapores ligeros)", 
-                                   "Medium Duty (Cocción estándar)", 
-                                   "Heavy Duty (Grasa abundante)", 
-                                   "Extra Heavy Duty (Wok/Carbón)"])
+        instalacion = st.selectbox("Instalación", 
+                                   ["Adosada a una pared (3 lados abiertos)", 
+                                    "Isla (4 lados abiertos)", 
+                                    "Esquina (2 lados abiertos)"])
+        
+        aplicacion_dict = {
+            "Light Duty (Hornos, Vapor, Marmitas)": 0.25,
+            "Medium Duty (Estufas, Planchas, Freidoras pequeñas)": 0.35,
+            "Heavy Duty (Parrillas gas, Carbón, Freidoras alto volumen)": 0.40,
+            "Extra Heavy Duty (Wok, Leña sólida, Espadas)": 0.50
+        }
+        
+        aplicacion_key = st.selectbox("Aplicación", list(aplicacion_dict.keys()))
+        vc_val = aplicacion_dict[aplicacion_key]
     
-    # Calcular en tiempo real
-    cfm_calc, vc_used, perim_calc = calcular_caudal_metrico(largo, ancho, distancia, aplicacion, instalacion)
+    # Cálculo Caudal (Metodología Manual)
+    # Perímetro Libre
+    if "Isla" in instalacion: perimetro = (2 * largo) + (2 * ancho)
+    elif "Adosada" in instalacion: perimetro = (2 * ancho) + largo
+    elif "Esquina" in instalacion: perimetro = ancho + largo
+    else: perimetro = (2 * largo) + (2 * ancho)
+    
+    area_paso = perimetro * distancia
+    caudal_m3s = area_paso * vc_val
+    caudal_m3hr = caudal_m3s * 3600
+    caudal_cfm = caudal_m3hr / 1.699
     
     st.markdown("---")
     res_col1, res_col2, res_col3 = st.columns(3)
-    with res_col1:
-        st.metric("Velocidad Captación", f"{vc_used} m/s")
-    with res_col2:
-        st.metric("Perímetro Libre", f"{perim_calc:.2f} m")
+    with res_col1: st.metric("Velocidad Captación", f"{vc_val} m/s")
+    with res_col2: st.metric("Perímetro Libre", f"{perimetro:.2f} m")
     with res_col3:
         st.markdown(f"""
         <div style="background-color: #0E4F8F; color: white; padding: 10px; border-radius: 5px; text-align: center;">
             <small>Caudal Requerido</small><br>
-            <strong style="font-size: 24px;">{cfm_calc} CFM</strong>
+            <strong style="font-size: 24px;">{int(caudal_cfm)} CFM</strong>
         </div>
         """, unsafe_allow_html=True)
         
-    if st.button("✅ Confirmar Caudal y Pasar a Ductos"):
-        st.session_state['cfm_actual'] = cfm_calc
-        st.success(f"Caudal de {cfm_calc} CFM fijado para diseño de ductos.")
+    if st.button("✅ Confirmar Caudal y Dimensionar Ductos"):
+        st.session_state['cfm_actual'] = int(caudal_cfm)
+        st.success(f"Caudal de {int(caudal_cfm)} CFM fijado.")
 
 # --- TAB 2: DUCTOS ---
 with tab2:
     cfm_ducto = st.number_input("Caudal de Diseño (CFM)", value=st.session_state.get('cfm_actual', 0))
     
     if cfm_ducto > 0:
-        c_dims, c_info = st.columns([2, 1])
+        # Calcular dimensiones ideales (Múltiplos de 2 para 2000 FPM)
+        ideal_side, ideal_diam = get_auto_dims(cfm_ducto, 2000)
         
+        c_dims, c_info = st.columns([2, 1])
         with c_dims:
             tipo_ducto = st.radio("Forma", ["Rectangular", "Circular"], horizontal=True)
-            area_ft2 = 0
             
             if tipo_ducto == "Rectangular":
                 cc1, cc2 = st.columns(2)
-                with cc1: w_in = st.number_input("Ancho (pulgadas)", 10.0, step=2.0)
-                with cc2: h_in = st.number_input("Alto (pulgadas)", 10.0, step=2.0)
+                with cc1: w_in = st.number_input("Ancho (pulgadas)", min_value=4, value=ideal_side, step=2)
+                with cc2: h_in = st.number_input("Alto (pulgadas)", min_value=4, value=ideal_side, step=2)
                 area_ft2 = (w_in * h_in) / 144
                 diam_eq = 1.3 * ((w_in * h_in)**0.625) / ((w_in + h_in)**0.25)
             else:
-                d_in = st.number_input("Diámetro (pulgadas)", 10.0, step=2.0)
+                d_in = st.number_input("Diámetro (pulgadas)", min_value=4, value=ideal_diam, step=2)
                 area_ft2 = (math.pi * (d_in/12)**2) / 4
                 diam_eq = d_in
                 
-        # Cálculo Velocidad
-        velocidad = cfm_ducto / area_ft2
-        pd_val = (velocidad / 4005)**2  # Presión dinámica
+        velocidad = cfm_ducto / area_ft2 if area_ft2 > 0 else 0
+        pd_val = (velocidad / 4005)**2
         
         with c_info:
             st.markdown("##### Resultados:")
@@ -230,13 +249,12 @@ with tab2:
             st.caption(f"Diámetro Eq: {diam_eq:.1f}\"")
             st.caption(f"Presión Dinámica: {pd_val:.3f} in wg")
             
-        # Semáforo
         if 1500 <= velocidad <= 3000:
-            st.markdown('<div class="success-box">✅ <strong>VELOCIDAD CORRECTA</strong><br>Rango ideal para transporte de grasa (1500-3000 FPM).</div>', unsafe_allow_html=True)
+            st.markdown('<div class="success-box">✅ <strong>VELOCIDAD ÓPTIMA</strong><br>1500-3000 FPM</div>', unsafe_allow_html=True)
         elif velocidad < 1500:
-            st.markdown('<div class="danger-box">⚠️ <strong>PELIGRO: VELOCIDAD BAJA</strong><br>Riesgo alto de acumulación de grasa e incendio. Reduce el ducto.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="danger-box">⚠️ <strong>VELOCIDAD BAJA</strong><br>Riesgo de acumulación de grasa.</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="warning-box">⚠️ <strong>PRECAUCIÓN: VELOCIDAD ALTA</strong><br>Posible ruido excesivo y alto consumo. Aumenta el ducto.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="warning-box">⚠️ <strong>VELOCIDAD ALTA</strong><br>Riesgo de ruido excesivo.</div>', unsafe_allow_html=True)
             
         st.session_state['vel_actual'] = velocidad
         st.session_state['pd_actual'] = pd_val
@@ -244,125 +262,155 @@ with tab2:
     else:
         st.info("Define el caudal en la Pestaña 1.")
 
-# --- TAB 3: PÉRDIDA DE CARGA Y CIERRE ---
+# --- TAB 3: PRESIÓN Y CIERRE ---
 with tab3:
     if st.session_state.get('vel_actual', 0) > 0:
         pd_ref = st.session_state['pd_actual']
         de_ref = st.session_state['de_actual']
         
-        st.markdown(f"**Cálculo de Pérdidas (Sistema Inglés)** | Pd Ref: {pd_ref:.3f} in wg")
+        st.markdown(f"**Cálculo de Pérdidas** (Pd Ref: {pd_ref:.3f} in wg)")
         
-        # --- INPUTS DE ACCESORIOS ---
         if 'lista_perdidas' not in st.session_state:
             st.session_state['lista_perdidas'] = []
             
-        col_add1, col_add2, col_add3 = st.columns([3, 1, 1])
+        # --- INPUTS DE COMPONENTES ---
+        col_type, col_val, col_btn = st.columns([3, 2, 1])
         
-        with col_add1:
-            accesorio = st.selectbox("Agregar Componente", [
-                "Ducto Recto (Pies)",
-                "Codo 90° Radio Largo (n=0.30)",
-                "Codo 90° Radio Corto (n=0.50)",
-                "Codo 45° (n=0.18)",
-                "Ampliación (n=0.55)",
-                "Reducción (n=0.05)",
-                "Entrada Campana (n=0.50)",
-                "Filtros de Grasa (Fijo 0.50 in wg)",
-                "Otras Pérdidas (Manual)"
-            ])
+        with col_type:
+            tipo_acc = st.selectbox("Componente", 
+                                    ["Tramos Rectos", 
+                                     "Codo", 
+                                     "Dispositivo de Captación", 
+                                     "Filtro Inercial de Grasa Tipo Bafle",
+                                     "Ampliación",
+                                     "Reducción",
+                                     "Otras Pérdidas"])
             
-        with col_add2:
-            cantidad = st.number_input("Cant/Valor", 0.0, 1000.0, 1.0, step=1.0)
+            # Submenú para Codos
+            codo_grados = None
+            codo_tipo = None
             
-        with col_add3:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("➕"):
+            if tipo_acc == "Codo":
+                c1, c2 = st.columns(2)
+                with c1: codo_grados = st.selectbox("Ángulo", ["90°", "45°", "30°"])
+                with c2: codo_tipo = st.selectbox("Radio", ["Largo", "Corto"])
+
+        with col_val:
+            if tipo_acc == "Tramos Rectos":
+                val_input = st.number_input("Longitud (Metros)", 0.0, 500.0, 1.0, step=0.5)
+            elif tipo_acc == "Otras Pérdidas":
+                val_input = st.number_input("Presión (in wg)", 0.0, 5.0, 0.1, step=0.1)
+            else:
+                val_input = st.number_input("Cantidad (Pzas)", 1, 100, 1)
+        
+        with col_btn:
+            st.write("")
+            st.write("")
+            if st.button("➕ Agregar"):
                 perdida = 0
                 desc = ""
                 
-                # Lógica Coeficientes
-                if "Ducto Recto" in accesorio:
-                    # Darcy simplificado: f aprox 0.018 para galv
-                    # HL = f * (L/D) * Pd
+                # Lógica Coeficientes Ocultos
+                if tipo_acc == "Tramos Rectos":
+                    # Convertir metros a pies para cálculo Darcy aproximado
+                    feet = val_input * 3.281
                     d_ft = de_ref / 12
-                    perdida = (0.018 * (cantidad/d_ft)) * pd_ref
-                    desc = f"Ducto Recto ({cantidad} ft)"
-                elif "Codo 90° Radio Largo" in accesorio:
-                    perdida = 0.30 * pd_ref * cantidad
-                    desc = f"Codos 90° RL ({int(cantidad)})"
-                elif "Codo 90° Radio Corto" in accesorio:
-                    perdida = 0.50 * pd_ref * cantidad
-                    desc = f"Codos 90° RC ({int(cantidad)})"
-                elif "Codo 45°" in accesorio:
-                    perdida = 0.18 * pd_ref * cantidad
-                    desc = f"Codos 45° ({int(cantidad)})"
-                elif "Ampliación" in accesorio:
-                    perdida = 0.55 * pd_ref * cantidad
-                    desc = f"Ampliaciones ({int(cantidad)})"
-                elif "Reducción" in accesorio:
-                    perdida = 0.05 * pd_ref * cantidad
-                    desc = f"Reducciones ({int(cantidad)})"
-                elif "Entrada Campana" in accesorio:
-                    perdida = 0.50 * pd_ref * cantidad
-                    desc = "Entrada Campana"
-                elif "Filtros" in accesorio:
-                    perdida = 0.50 * cantidad # Fijo por banco
-                    desc = "Banco Filtros"
-                elif "Otras" in accesorio:
-                    perdida = cantidad
-                    desc = "Pérdida Adicional"
+                    perdida = (0.018 * (feet/d_ft)) * pd_ref
+                    desc = f"Tramo Recto ({val_input} m)"
+                    
+                elif tipo_acc == "Codo":
+                    n = 0.30 # Default
+                    if codo_grados == "90°": n = 0.30 if codo_tipo == "Largo" else 0.50
+                    elif codo_grados == "45°": n = 0.18
+                    elif codo_grados == "30°": n = 0.12
+                    
+                    perdida = n * pd_ref * val_input
+                    desc = f"Codo {codo_grados} {codo_tipo} ({val_input} pzas)"
+                    
+                elif tipo_acc == "Dispositivo de Captación":
+                    perdida = 0.50 * pd_ref * val_input
+                    desc = f"Dispositivo Captación ({val_input} pzas)"
+                    
+                elif tipo_acc == "Filtro Inercial de Grasa Tipo Bafle":
+                    perdida = 0.50 * val_input
+                    desc = f"Filtro Inercial Bafle ({val_input} pzas)"
+                    
+                elif tipo_acc == "Ampliación":
+                    perdida = 0.55 * pd_ref * val_input
+                    desc = f"Ampliación ({val_input} pzas)"
+                    
+                elif tipo_acc == "Reducción":
+                    perdida = 0.05 * pd_ref * val_input
+                    desc = f"Reducción ({val_input} pzas)"
+                    
+                elif tipo_acc == "Otras Pérdidas":
+                    perdida = val_input
+                    desc = "Pérdida Adicional Manual"
                 
                 st.session_state['lista_perdidas'].append({"Concepto": desc, "Pe (in wg)": perdida})
-        
-        # --- TABLA Y TOTAL ---
-        st.markdown("---")
+
+        # --- TABLA RESUMEN ---
         total_sp = 0
         if len(st.session_state['lista_perdidas']) > 0:
-            df_loss = pd.DataFrame(st.session_state['lista_perdidas'])
-            st.table(df_loss)
-            total_sp = df_loss['Pe (in wg)'].sum()
+            st.markdown("---")
+            st.table(pd.DataFrame(st.session_state['lista_perdidas']))
+            total_sp = sum(item['Pe (in wg)'] for item in st.session_state['lista_perdidas'])
+            st.metric("Presión Estática Total", f"{total_sp:.3f} in wg")
             
-            col_tot1, col_tot2 = st.columns([3, 1])
-            with col_tot2:
-                st.metric("Presión Estática Total", f"{total_sp:.3f} in wg")
+            # --- OPCIONES FINALES ANTES DE GUARDAR ---
+            st.markdown("#### ⚙️ Opciones de Selección de Equipo")
             
-            if st.button("💾 GUARDAR PARTIDA EN CUADRO DE EQUIPOS"):
+            c_pref, c_elec, c_loc = st.columns(3)
+            with c_pref:
+                st.markdown("**Prioridades:**")
+                p1 = st.checkbox("Costo")
+                p2 = st.checkbox("Nivel Sonoro")
+                p3 = st.checkbox("Eficiencia Energética")
+                prioridades = ", ".join([p for p, chk in [("Costo", p1), ("Sonido", p2), ("Energía", p3)] if chk])
+            
+            with c_elec:
+                voltaje = st.radio("Alimentación", ["Monofásico", "Trifásico"])
+                
+            with c_loc:
+                ubicacion_eq = st.radio("Instalación", ["Uso Interior", "Uso Exterior"])
+            
+            if st.button("💾 GUARDAR PARTIDA"):
                 tag = f"VE-{st.session_state['ve_counter']:02d}"
                 st.session_state['equipments'].append({
                     "tag": tag,
                     "cfm": int(st.session_state['cfm_actual']),
                     "sp": round(total_sp, 3),
-                    "app": "Cocina Comercial",
-                    "details": f"Vel: {int(st.session_state['vel_actual'])} FPM | De: {de_ref:.1f}\""
+                    "voltaje": voltaje,
+                    "ubicacion": ubicacion_eq,
+                    "prioridades": prioridades if prioridades else "Estándar"
                 })
                 st.session_state['ve_counter'] += 1
-                st.session_state['lista_perdidas'] = [] # Reset lista
-                st.success(f"¡Equipo {tag} guardado! Puedes calcular otro.")
-                
-        # --- BOTÓN FINAL DE ENVÍO ---
+                st.session_state['lista_perdidas'] = []
+                st.success(f"¡Equipo {tag} guardado!")
+
+        # --- BOTÓN FINAL DE CORREO ---
         if len(st.session_state['equipments']) > 0:
-            st.markdown("### 📤 Finalizar Proyecto")
-            st.info("Revisa el cuadro de equipos en la barra lateral antes de enviar.")
+            st.markdown("---")
+            st.info("Revisa el resumen en la barra lateral antes de enviar.")
             
-            # Construcción del mailto
-            loc = st.session_state['location_data']
-            subject = f"Solicitud Cotización - {loc['ciudad']}"
+            p_data = st.session_state.get('project_data', {})
+            loc_data = st.session_state.get('location_data', {})
             
-            body = f"Hola Ing. Sotelo,%0D%0A%0D%0ARequiero cotización para el siguiente proyecto:%0D%0A%0D%0A"
-            body += f"📍 UBICACIÓN:%0D%0ACiudad: {loc['ciudad']}%0D%0AAltitud: {loc['alt']} msnm%0D%0ATemp Prom: {loc['temp']}°C%0D%0A%0D%0A"
-            body += "📋 CUADRO DE EQUIPOS:%0D%0A"
+            subject = f"Cotización: {p_data.get('nombre', 'Sin Nombre')}"
+            
+            body = f"Hola Ing. Sotelo,%0D%0A%0D%0ASolicito cotización para el proyecto: {p_data.get('nombre')}%0D%0A"
+            body += f"📍 UBICACIÓN: {p_data.get('ubicacion')} (Alt: {loc_data.get('alt',0)}m | Temp: {loc_data.get('temp',0)}C)%0D%0A%0D%0A"
+            body += "📋 LISTADO DE EQUIPOS:%0D%0A"
             
             for eq in st.session_state['equipments']:
-                body += f"[{eq['tag']}] Caudal: {eq['cfm']} CFM | P.E.: {eq['sp']} in wg | App: {eq['app']}%0D%0A"
-            
-            body += "%0D%0A%0D%0AAtentamente,%0D%0A(Tu Nombre)"
+                body += f"[{eq['tag']}] {eq['cfm']} CFM @ {eq['sp']} in wg | {eq['voltaje']} | {eq['ubicacion']} | Prioridad: {eq['prioridades']}%0D%0A"
             
             st.markdown(f"""
                 <a href="mailto:ventas@csventilacion.mx?subject={subject}&body={body}" 
-                   style="display: inline-block; background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; width: 100%; text-align: center;">
-                   📧 ENVIAR REPORTE Y COTIZAR
+                   style="display: inline-block; background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; width: 100%; text-align: center; font-size: 18px;">
+                   🚀 FINALIZAR Y ENVIAR POR CORREO
                 </a>
             """, unsafe_allow_html=True)
             
     else:
-        st.warning("Completa los pasos 1 y 2 primero.")
+        st.warning("Completa los pasos 1 y 2 para calcular presión.")
