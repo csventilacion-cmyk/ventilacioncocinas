@@ -4,10 +4,9 @@ import math
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="Calculadora Cocinas V5.0",
+    page_title="Calculadora Cocinas V3.0",
     page_icon="🔥",
-    layout="centered",
-    initial_sidebar_state="expanded"
+    layout="centered"
 )
 
 # --- ESTILOS VISUALES ---
@@ -26,21 +25,39 @@ if 'equipments' not in st.session_state: st.session_state['equipments'] = []
 if 've_counter' not in st.session_state: st.session_state['ve_counter'] = 1
 
 # --- BASE DE DATOS GEOGRÁFICA ---
-db_geo = {
-    "Sinaloa": {"Culiacán": {"alt": 54, "temp": 36}, "Mazatlán": {"alt": 10, "temp": 32}, "Los Mochis": {"alt": 10, "temp": 35}},
-    "Ciudad de México": {"CDMX (Centro)": {"alt": 2240, "temp": 24}, "Santa Fe": {"alt": 2500, "temp": 21}, "Polanco": {"alt": 2250, "temp": 24}},
-    "Nuevo León": {"Monterrey": {"alt": 540, "temp": 35}, "San Pedro": {"alt": 600, "temp": 34}, "Apodaca": {"alt": 400, "temp": 36}},
-    "Jalisco": {"Guadalajara": {"alt": 1566, "temp": 28}, "Zapopan": {"alt": 1570, "temp": 28}, "Puerto Vallarta": {"alt": 10, "temp": 32}},
-    "Sonora": {"Hermosillo": {"alt": 210, "temp": 40}, "Cd. Obregón": {"alt": 40, "temp": 39}, "Nogales": {"alt": 1200, "temp": 30}},
-    "Querétaro": {"Querétaro": {"alt": 1820, "temp": 28}, "San Juan del Río": {"alt": 1920, "temp": 27}, "El Marqués": {"alt": 1900, "temp": 28}},
-    "Puebla": {"Puebla": {"alt": 2135, "temp": 25}, "Cholula": {"alt": 2150, "temp": 25}, "Tehuacán": {"alt": 1600, "temp": 28}},
-    "Yucatán": {"Mérida": {"alt": 10, "temp": 36}, "Valladolid": {"alt": 20, "temp": 34}, "Progreso": {"alt": 0, "temp": 35}},
-    "Baja California": {"Tijuana": {"alt": 20, "temp": 26}, "Mexicali": {"alt": 8, "temp": 42}, "Ensenada": {"alt": 10, "temp": 24}},
-    "Quintana Roo": {"Cancún": {"alt": 10, "temp": 32}, "Playa del Carmen": {"alt": 10, "temp": 32}, "Tulum": {"alt": 10, "temp": 32}},
-    "Guanajuato": {"León": {"alt": 1815, "temp": 29}, "Irapuato": {"alt": 1724, "temp": 30}, "Celaya": {"alt": 1750, "temp": 29}},
-    "Veracruz": {"Veracruz": {"alt": 10, "temp": 30}, "Xalapa": {"alt": 1400, "temp": 24}, "Coatzacoalcos": {"alt": 10, "temp": 32}},
-    "Aguascalientes": {"Aguascalientes": {"alt": 1888, "temp": 26}, "Jesús María": {"alt": 1890, "temp": 26}, "Calvillo": {"alt": 1640, "temp": 28}},
-    "Chihuahua": {"Chihuahua": {"alt": 1435, "temp": 30}, "Cd. Juárez": {"alt": 1120, "temp": 32}, "Delicias": {"alt": 1170, "temp": 31}}
+ciudades_db = {
+    "Aguascalientes": ["Aguascalientes", "Jesús María", "Calvillo"],
+    "Baja California": ["Tijuana", "Mexicali", "Ensenada"],
+    "Baja California Sur": ["La Paz", "Cabo San Lucas", "San José del Cabo"],
+    "Campeche": ["Campeche", "Ciudad del Carmen", "Champotón"],
+    "Chiapas": ["Tuxtla Gutiérrez", "Tapachula", "San Cristóbal de las Casas"],
+    "Chihuahua": ["Ciudad Juárez", "Chihuahua", "Delicias"],
+    "Ciudad de México": ["CDMX (Centro)", "Santa Fe", "Polanco"],
+    "Coahuila": ["Saltillo", "Torreón", "Monclova"],
+    "Colima": ["Colima", "Manzanillo", "Tecomán"],
+    "Durango": ["Durango", "Gómez Palacio", "Lerdo"],
+    "Guanajuato": ["León", "Irapuato", "Celaya"],
+    "Guerrero": ["Acapulco", "Chilpancingo", "Iguala"],
+    "Hidalgo": ["Pachuca", "Tulancingo", "Tula"],
+    "Jalisco": ["Guadalajara", "Zapopan", "Puerto Vallarta"],
+    "Estado de México": ["Toluca", "Ecatepec", "Naucalpan"],
+    "Michoacán": ["Morelia", "Uruapan", "Zamora"],
+    "Morelos": ["Cuernavaca", "Jiutepec", "Cuautla"],
+    "Nayarit": ["Tepic", "Xalisco", "Bahía de Banderas"],
+    "Nuevo León": ["Monterrey", "San Pedro Garza García", "Apodaca"],
+    "Oaxaca": ["Oaxaca de Juárez", "Tuxtepec", "Salina Cruz"],
+    "Puebla": ["Puebla", "Tehuacán", "Cholula"],
+    "Querétaro": ["Santiago de Querétaro", "San Juan del Río", "El Marqués"],
+    "Quintana Roo": ["Cancún", "Playa del Carmen", "Chetumal"],
+    "San Luis Potosí": ["San Luis Potosí", "Soledad de Graciano Sánchez", "Ciudad Valles"],
+    "Sinaloa": ["Culiacán", "Mazatlán", "Los Mochis"],
+    "Sonora": ["Hermosillo", "Ciudad Obregón", "Nogales"],
+    "Tabasco": ["Villahermosa", "Cárdenas", "Comalcalco"],
+    "Tamaulipas": ["Reynosa", "Matamoros", "Nuevo Laredo"],
+    "Tlaxcala": ["Tlaxcala", "Apizaco", "Huamantla"],
+    "Veracruz": ["Veracruz", "Xalapa", "Coatzacoalcos"],
+    "Yucatán": ["Mérida", "Kanasín", "Valladolid"],
+    "Zacatecas": ["Zacatecas", "Guadalupe", "Fresnillo"]
 }
 
 # --- FUNCIONES DE CÁLCULO ---
@@ -49,60 +66,51 @@ def get_auto_dims(cfm_target, velocity_target=2000):
     target_area = cfm_target / velocity_target
     diam_ideal = math.sqrt(target_area * 4 / math.pi) * 12
     diam_final = round(diam_ideal / 2) * 2
-    if diam_final < 6: diam_final = 6
+    if diam_final < 4: diam_final = 4
     side_ideal = math.sqrt(target_area) * 12
     side_final = round(side_ideal / 2) * 2
-    if side_final < 6: side_final = 6
+    if side_final < 4: side_final = 4
     return int(side_final), int(diam_final)
 
 # --- SIDEBAR ---
 with st.sidebar:
     try:
-        st.image("LOGO ONLINE.jpg", use_column_width=True)
+        st.image("logo.jpg", use_column_width=True)
     except:
         st.header("CS VENTILACIÓN")
-        st.caption("Nota: Sube 'LOGO ONLINE.jpg' a GitHub.")
+        st.caption("Nota: Sube 'logo.jpg' a GitHub.")
     
     st.markdown("---")
     
-    with st.expander("📍 Detalles del Proyecto", expanded=True):
-        nombre_proyecto = st.text_input("Nombre Proyecto", placeholder="Ej. Restaurante Centro")
+    with st.expander("📍 Datos del Proyecto", expanded=True):
+        nombre_proyecto = st.text_input("Nombre del Proyecto", placeholder="Ej. Restaurante La Plaza")
         pais = st.selectbox("País", ["México", "Otro"])
         
-        alt_res = 0
-        temp_res = 25
-        ciudad_str = ""
+        ciudad_selec = ""
+        estado_selec = ""
         
         if pais == "México":
-            estado = st.selectbox("Estado", list(db_geo.keys()))
-            ciudad = st.selectbox("Ciudad", list(db_geo[estado].keys()))
-            datos = db_geo[estado][ciudad]
-            alt_res = datos['alt']
-            temp_res = datos['temp']
-            ciudad_str = f"{ciudad}, {estado}"
-            
-            c1, c2 = st.columns(2)
-            with c1: st.metric("Altitud", f"{alt_res} m")
-            with c2: st.metric("Temp", f"{temp_res}°C")
+            estado_selec = st.selectbox("Estado", list(ciudades_db.keys()))
+            ciudad_selec = st.selectbox("Ciudad", ciudades_db[estado_selec])
         else:
-            ciudad_str = st.text_input("Ciudad / Ubicación")
-            alt_res = st.number_input("Altitud (msnm)", 0)
-            temp_res = st.number_input("Temperatura (°C)", 25)
-            
-        st.session_state['loc_data'] = {"ciudad_full": ciudad_str, "alt": alt_res, "temp": temp_res}
-        st.session_state['proj_name'] = nombre_proyecto
-
+            ciudad_selec = st.text_input("Ciudad / Ubicación")
+        
+        st.session_state['project_data'] = {
+            "nombre": nombre_proyecto,
+            "ubicacion": f"{ciudad_selec}, {estado_selec}" if pais == "México" else ciudad_selec
+        }
+    
     st.markdown("---")
-    st.markdown("**Partidas Guardadas:**")
+    st.markdown("**Equipos Guardados:**")
     if len(st.session_state['equipments']) > 0:
         for item in st.session_state['equipments']:
             st.caption(f"🔹 {item['tag']} | {item['cfm']} CFM")
-        if st.button("🗑️ Reiniciar Lista"):
+        if st.button("🗑️ Borrar Lista"):
             st.session_state['equipments'] = []
             st.session_state['ve_counter'] = 1
             st.rerun()
 
-# --- HEADER ---
+# --- TÍTULO PRINCIPAL ---
 st.markdown('<div class="main-header">CALCULADORA PARA COCINAS COMERCIALES</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-header">Partida Actual: <strong>VE-{st.session_state["ve_counter"]:02d}</strong></div>', unsafe_allow_html=True)
 st.markdown("---")
@@ -114,21 +122,20 @@ tab1, tab2, tab3 = st.tabs(["1️⃣ Caudal", "2️⃣ Ductos", "3️⃣ Cierre"
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
-        largo = st.number_input("Largo Campana (m)", 0.5, 10.0, 2.0, step=0.1)
-        ancho = st.number_input("Ancho Campana (m)", 0.5, 5.0, 1.0, step=0.1)
+        st.markdown("**Dimensiones Campana (Metros)**")
+        largo = st.number_input("Largo (m)", 0.5, 10.0, 2.0, step=0.1)
+        ancho = st.number_input("Ancho (m)", 0.5, 5.0, 1.0, step=0.1)
         distancia = st.number_input("Distancia Captación (m)", 0.1, 2.0, 1.0, step=0.05)
         
     with col2:
-        instalacion = st.selectbox("Instalación", 
-                                   ["Adosada a una pared (3 lados abiertos)", 
-                                    "Isla (4 lados abiertos)", 
-                                    "Esquina (2 lados abiertos)"])
+        st.markdown("**Condiciones**")
+        instalacion = st.selectbox("Instalación", ["Adosada a una pared", "Isla", "Esquina"])
         
         apps = {
-            "Light Duty (Hornos, Vapor, Marmitas, Lavaplatos)": 0.25,
-            "Medium Duty (Estufas, Planchas, Freidoras pequeñas)": 0.35,
-            "Heavy Duty (Parrillas gas, Carbón, Freidoras alto volumen)": 0.40,
-            "Extra Heavy Duty (Wok, Leña sólida, Espadas, Mesquite)": 0.50
+            "Light Duty (Hornos, Vapor)": 0.25,
+            "Medium Duty (Estufas, Planchas)": 0.35,
+            "Heavy Duty (Parrillas, Carbón)": 0.40,
+            "Extra Heavy Duty (Wok, Leña)": 0.50
         }
         app_key = st.selectbox("Aplicación", list(apps.keys()))
         vc_val = apps[app_key]
@@ -138,22 +145,15 @@ with tab1:
     elif "Adosada" in instalacion: P = (2*ancho) + largo
     else: P = ancho + largo
     
-    Q_m3s = (P * distancia) * vc_val
-    Q_cfm = (Q_m3s * 3600) / 1.699
+    Q_cfm = ((P * distancia) * vc_val * 3600) / 1.699
     
-    st.info(f"Velocidad de Captación seleccionada: **{vc_val} m/s**")
+    st.info(f"Velocidad de Captación: **{vc_val} m/s**")
     
-    col_res1, col_res2 = st.columns([1,2])
-    with col_res1: st.metric("Perímetro Libre", f"{P:.2f} m")
-    with col_res2:
-        st.markdown(f"""
-        <div style="background-color: #0E4F8F; color: white; padding: 10px; border-radius: 5px; text-align: center;">
-            <small>Caudal Requerido</small><br>
-            <strong style="font-size: 24px;">{int(Q_cfm)} CFM</strong>
-        </div>
-        """, unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1: st.metric("Perímetro Libre", f"{P:.2f} m")
+    with c2: st.metric("Caudal Requerido", f"{int(Q_cfm)} CFM")
         
-    if st.button("✅ Usar este Caudal"):
+    if st.button("✅ Confirmar Caudal"):
         st.session_state['cfm_actual'] = int(Q_cfm)
         st.success("Caudal fijado.")
 
@@ -178,10 +178,9 @@ with tab2:
                 area_ft2 = (math.pi*(d/12)**2)/4
                 de = d
         
-        # Check para evitar división por cero
         if area_ft2 > 0:
             vel = cfm_val / area_ft2
-            pd_val = (vel/4005)**2 # Variable corregida para no chocar con 'pd'
+            pd_val = (vel/4005)**2
         else:
             vel = 0
             pd_val = 0
@@ -190,39 +189,74 @@ with tab2:
             st.metric("Velocidad", f"{int(vel)} FPM")
             st.caption(f"De: {de:.1f}\" | Pd: {pd_val:.3f} in")
             
-        # Semáforos
         if vel < 1500:
-            st.markdown('<div class="danger-box">⚠️ <strong>VELOCIDAD BAJA (< 1500 FPM)</strong><br>Peligro crítico de acumulación de grasa e incendio. Reduzca dimensiones.</div>', unsafe_allow_html=True)
-        elif 1500 <= vel <= 2500:
-            st.markdown('<div class="success-box">✅ <strong>VELOCIDAD IDEAL (1500-2500 FPM)</strong><br>Rango óptimo para transporte de vapores de grasa.</div>', unsafe_allow_html=True)
-        elif 2500 < vel <= 4000:
-            st.markdown('<div class="warning-box">⚠️ <strong>ALTA VELOCIDAD (> 2500 FPM)</strong><br>Nivel de ruido y de presión estática excesiva, alto consumo energético.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="danger-box">⚠️ VELOCIDAD BAJA (< 1500 FPM)</div>', unsafe_allow_html=True)
+        elif 1500 <= vel <= 3000:
+            st.markdown('<div class="success-box">✅ VELOCIDAD ÓPTIMA</div>', unsafe_allow_html=True)
         else:
-            st.error("⛔ VELOCIDAD NO ADMISIBLE (> 4000 FPM). Cálculo fuera de norma.")
+            st.markdown('<div class="warning-box">⚠️ VELOCIDAD ALTA (> 3000 FPM)</div>', unsafe_allow_html=True)
             
         st.session_state['vel_actual'] = vel
-        st.session_state['pd_ref'] = pd_val # Variable corregida
+        st.session_state['pd_ref'] = pd_val
         st.session_state['de_ref'] = de
     else:
         st.info("Calcula el caudal primero.")
 
 # --- TAB 3: CIERRE ---
 with tab3:
-    if st.session_state.get('vel_actual', 0) > 0 and st.session_state.get('vel_actual', 0) <= 4000:
+    if st.session_state.get('vel_actual', 0) > 0:
         pd_ref = st.session_state['pd_ref']
         de_ref = st.session_state['de_ref']
         
         st.markdown(f"**Cálculo de Pérdidas** (Pd: {pd_ref:.3f})")
         if 'losses' not in st.session_state: st.session_state['losses'] = []
         
-        c_in1, c_in2, c_btn = st.columns([3, 2, 1])
-        with c_in1:
-            comp = st.selectbox("Accesorio", ["Tramos Rectos (Metros)", "Codo", "Dispositivo de Captación", "Filtro Inercial de Grasa Tipo Bafle", "Ampliación", "Reducción", "Otras Pérdidas"])
-            ang, rad = None, None
-            if comp == "Codo":
-                c1, c2 = st.columns(2)
-                with c1: ang = st.selectbox("Ángulo", ["90°", "45°", "30°"])
-                with c2: rad = st.selectbox("Radio", ["Largo", "Corto"])
+        c1, c2, c3 = st.columns([3, 2, 1])
+        with c1:
+            comp = st.selectbox("Accesorio", ["Tramos Rectos", "Codo", "Entrada Campana", "Filtros", "Ampliación", "Reducción", "Otras"])
+        with c2:
+            val = st.number_input("Cant/Longitud", 0.0, 500.0, 1.0, step=0.5)
+        with c3:
+            st.write("")
+            st.write("")
+            if st.button("➕"):
+                loss = 0
+                desc = ""
+                # Protección div/0
+                d_safe = de_ref if de_ref > 0 else 24
+                
+                if comp == "Tramos Rectos":
+                    ft = val * 3.281
+                    loss = (0.018 * (ft/(d_safe/12))) * pd_ref
+                    desc = f"Tramo Recto ({val}m)"
+                elif comp == "Codo":
+                    loss = 0.30 * pd_ref * val
+                    desc = f"Codos ({val})"
+                elif comp == "Entrada Campana":
+                    loss = 0.50 * pd_ref * val
+                    desc = f"Entrada Campana ({val})"
+                elif comp == "Filtros":
+                    loss = 0.50 * val
+                    desc = f"Banco Filtros ({val})"
+                elif comp == "Ampliación":
+                    loss = 0.55 * pd_ref * val
+                    desc = f"Ampliación ({val})"
+                elif comp == "Reducción":
+                    loss = 0.05 * pd_ref * val
+                    desc = f"Reducción ({val})"
+                elif comp == "Otras":
+                    loss = val
+                    desc = "Manual"
+                
+                st.session_state['losses'].append({"Item": desc, "Pe": loss})
         
-        with c_in2:
-            if "Tramos" in comp: val = st.number_input("Longitud (m)", 0.0, 500.0
+        if st.session_state['losses']:
+            # USO DE DATAFRAME (CORRECCION DE ERROR)
+            df = pd.DataFrame(st.session_state['losses'])
+            st.dataframe(df, use_container_width=True)
+            
+            total_sp = sum(item['Pe'] for item in st.session_state['losses'])
+            st.metric("Presión Estática Total", f"{total_sp:.3f} in wg")
+            
+            st.markdown("---")
+            st.
