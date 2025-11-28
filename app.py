@@ -5,7 +5,7 @@ import urllib.parse
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(
-    page_title="CS Ventilación - Calculadora V7.1",
+    page_title="CS Ventilación - Calculadora V8.0",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="expanded"
@@ -148,15 +148,20 @@ tab1, tab2, tab3 = st.tabs(["1️⃣ Caudal", "2️⃣ Ductos", "3️⃣ Presió
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("**Dimensiones (m)**")
-        largo = st.number_input("Largo", 0.5, 10.0, 2.0, step=0.1)
-        ancho = st.number_input("Ancho", 0.5, 5.0, 1.0, step=0.1)
-        dist = st.number_input("Distancia Captación", 0.1, 2.0, 1.0, step=0.05)
+        st.markdown("**Dimensiones de la campana (Metros)**")
+        largo = st.number_input("Largo (m)", min_value=0.5, value=2.0, step=0.1)
+        ancho = st.number_input("Ancho (m)", min_value=0.5, value=1.0, step=0.1)
+        distancia = st.number_input("Distancia de Captación (m)", min_value=0.1, value=1.0, step=0.05)
+        
     with col2:
         st.markdown("**Condiciones**")
-        instalacion = st.selectbox("Instalación", ["Adosada a una pared (3 lados)", "Isla (4 lados)", "Esquina (2 lados)"])
+        instalacion = st.selectbox("Instalación", 
+                                   ["Campana adosada a un muro", 
+                                    "Campana tipo isla", 
+                                    "Campana adosada a 2 muros"])
+        
         apps = {
-            "Light Duty (Hornos, Vapor)": 0.25,
+            "Light Duty (Hornos, Vapor, Marmitas)": 0.25,
             "Medium Duty (Estufas, Planchas)": 0.35,
             "Heavy Duty (Parrillas, Carbón)": 0.40,
             "Extra Heavy Duty (Wok, Leña)": 0.50
@@ -164,12 +169,13 @@ with tab1:
         app_key = st.selectbox("Aplicación", list(apps.keys()))
         vc_val = apps[app_key]
         st.session_state['current_app'] = app_key
-
-    if "Isla" in instalacion: P = (2*largo) + (2*ancho)
-    elif "Adosada" in instalacion: P = (2*ancho) + largo
-    else: P = ancho + largo
     
-    Q_cfm = ((P * dist) * vc_val * 3600) / 1.699
+    # Lógica de nombres actualizada
+    if instalacion == "Campana tipo isla": P = (2*largo) + (2*ancho)
+    elif instalacion == "Campana adosada a un muro": P = (2*ancho) + largo
+    else: P = ancho + largo # 2 muros
+    
+    Q_cfm = ((P * distancia) * vc_val * 3600) / 1.699
     
     st.info(f"Velocidad Captación: **{vc_val} m/s**")
     cc1, cc2 = st.columns(2)
@@ -202,14 +208,14 @@ with tab2:
                 de = d
         
         if area_ft2 > 0:
-            vel = cfm_val / area_ft2 
-            pd_state = (vel/4005)**2
+            vel = cfm_val / area_ft2
+            pd_val = (vel/4005)**2
         else:
-            vel, pd_state = 0, 0
+            vel, pd_val = 0, 0
             
         with c_res:
             st.metric("Velocidad", f"{int(vel)} FPM")
-            st.caption(f"De: {de:.1f}\" | Pd: {pd_state:.3f} in")
+            st.caption(f"De: {de:.1f}\" | Pd: {pd_val:.3f} in")
             
         if vel < 1500:
             st.markdown('<div class="danger-box">⚠️ <strong>VELOCIDAD BAJA (< 1500 FPM)</strong><br>Riesgo de acumulación de grasa.</div>', unsafe_allow_html=True)
@@ -221,10 +227,10 @@ with tab2:
             st.error("⛔ <strong>FUERA DE RANGO (> 4000 FPM)</strong><br>Velocidad no admisible.", icon="🚫")
             
         st.session_state['vel_actual'] = vel
-        st.session_state['pd_state'] = pd_state
+        st.session_state['pd_state'] = pd_val
         st.session_state['de_state'] = de
     else:
-        st.info("Define el caudal primero.")
+        st.info("Define el caudal en la Pestaña 1.")
 
 # --- TAB 3: PRESIÓN Y CIERRE ---
 with tab3:
@@ -234,11 +240,22 @@ with tab3:
         
         st.markdown(f"**Cálculo de Pérdidas** (Pd Ref: {pd_ref:.3f} in wg)")
         if 'lista_perdidas' not in st.session_state: st.session_state['lista_perdidas'] = []
+
+        # --- ELEMENTOS FIJOS (CAMPANA Y FILTROS) ---
+        st.markdown("###### Elementos del Sistema")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            incluir_campana = st.checkbox("Dispositivo de Captación", value=True)
+        with col_f2:
+            incluir_filtros = st.checkbox("Filtro Inercial (Bafle)", value=True)
         
+        st.markdown("---")
+        
+        # --- ACCESORIOS DINÁMICOS ---
         c_type, c_val, c_btn = st.columns([3, 2, 1])
         with c_type:
-            comp = st.selectbox("Accesorio", 
-                ["Tramos Rectos (Metros)", "Codo", "Dispositivo de Captación", "Filtro Inercial", "Ampliación", "Reducción", "Otras"])
+            comp = st.selectbox("Accesorio Adicional", 
+                ["Tramos Rectos (Metros)", "Codo", "Ampliación", "Reducción", "Otras Pérdidas"])
             
             codo_ang, codo_rad = None, None
             if comp == "Codo":
@@ -270,12 +287,6 @@ with tab3:
                     elif codo_ang == "30°": n = 0.12
                     loss = n * pd_ref * val
                     desc = f"Codo {codo_ang}° {codo_rad} ({val} pzas)"
-                elif "Captación" in comp:
-                    loss = 0.50 * pd_ref * val
-                    desc = f"Entrada Campana ({val} pzas)"
-                elif "Filtro" in comp:
-                    loss = 0.50 * val
-                    desc = f"Filtro Inercial ({val} pzas)"
                 elif "Ampliación" in comp:
                     loss = 0.55 * pd_ref * val
                     desc = f"Ampliación ({val} pzas)"
@@ -288,22 +299,31 @@ with tab3:
                 
                 st.session_state['lista_perdidas'].append({"Concepto": desc, "Pe (in wg)": loss})
 
-        if st.session_state['lista_perdidas']:
-            df = pd.DataFrame(st.session_state['lista_perdidas'])
+        # CÁLCULO TOTAL
+        loss_campana = 0.50 * pd_ref if incluir_campana else 0
+        loss_filtros = 0.50 if incluir_filtros else 0
+        loss_accesorios = sum(item['Pe (in wg)'] for item in st.session_state['lista_perdidas'])
+        
+        total_sp = loss_campana + loss_filtros + loss_accesorios
+        
+        # Visualización Tabla
+        resumen_visual = []
+        if incluir_campana: resumen_visual.append({"Concepto": "Dispositivo Captación", "Pe (in wg)": loss_campana})
+        if incluir_filtros: resumen_visual.append({"Concepto": "Filtro Inercial", "Pe (in wg)": loss_filtros})
+        resumen_visual.extend(st.session_state['lista_perdidas'])
+        
+        if resumen_visual:
+            df = pd.DataFrame(resumen_visual)
             st.dataframe(df, use_container_width=True)
-            
-            total_sp = sum(item['Pe (in wg)'] for item in st.session_state['lista_perdidas'])
             st.metric("Presión Estática Total", f"{total_sp:.3f} in wg")
             
             st.markdown("#### Selección de Equipo")
             
-            # Prioridades (Sin max_selections para evitar error, validación manual opcional si se desea)
-            prioridades = st.multiselect("Prioridades (Máx 2)", ["Costo Inicial", "Nivel Sonoro", "Consumo Energético"])
-            if len(prioridades) > 2:
-                st.caption("⚠️ Se considerarán solo las 2 primeras.")
-                
-            # Tipo Ventilador
-            tipo_vent = st.radio("Características Ventilador", ["Tipo Hongo (Tejado)", "Tipo Ventset", "Tuboaxial"], horizontal=True)
+            # PRIORIDAD ÚNICA (RADIO)
+            prioridad = st.radio("Prioridad Principal", ["Costo Inicial", "Nivel Sonoro", "Consumo Energético"], horizontal=True)
+            
+            # TIPO VENTILADOR
+            tipo_vent = st.radio("Tipo Ventilador", ["Tipo Hongo (Tejado)", "Tipo Ventset", "Tuboaxial"], horizontal=True)
             
             c1, c2 = st.columns(2)
             with c1: volt = st.radio("Voltaje", ["Monofásico", "Trifásico"], horizontal=True)
@@ -319,20 +339,20 @@ with tab3:
                     "ubicacion": ubi,
                     "tipo_vent": tipo_vent,
                     "app_type": st.session_state.get('current_app', 'N/A'),
-                    "prioridades": ", ".join(prioridades[:2]) # Tomamos solo las 2 primeras por seguridad
+                    "prioridades": prioridad
                 })
                 st.session_state['ve_counter'] += 1
                 st.session_state['lista_perdidas'] = []
-                st.rerun() # SOLUCION DOBLE CLIC
+                st.rerun() # REFRESCAR PANTALLA PARA VER CAMBIOS
                 
         if st.session_state['equipments']:
             st.markdown("---")
             loc = st.session_state['project_data']
             
-            # Generar Texto Lista
+            # Generar texto limpio para el correo (formato "tabla")
             list_text = ""
-            for eq in st.session_state['equipments']:
-                list_text += f"• {eq['tag']} | {eq['cfm']} CFM @ {eq['sp']}\" | {eq['tipo_vent']} | {eq['ubicacion']} | {eq['app_type']} | {eq['voltaje']}\n"
+            for e in st.session_state['equipments']:
+                list_text += f"• {e['tag']} | {e['cfm']} CFM @ {e['sp']}\" | {e['tipo_vent']} | {e['app_type']} | {e['voltaje']} | {e['ubicacion']} | Prioridad: {e['prioridades']}\n"
 
             subject_raw = f"Cotización: {loc.get('nombre')}"
             body_raw = f"""Hola Ing. Sotelo,
@@ -352,7 +372,7 @@ Quedo atento."""
             safe_subject = urllib.parse.quote(subject_raw)
             safe_body = urllib.parse.quote(body_raw)
             mailto_link = f"mailto:ventas@csventilacion.mx?subject={safe_subject}&body={safe_body}"
-            
+
             st.markdown(f"""
             <a href="{mailto_link}" target="_blank" style="
                 display: block;
