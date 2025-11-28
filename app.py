@@ -4,7 +4,7 @@ import math
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="Calculadora Cocinas V3.0",
+    page_title="CS Ventilación - Calculadora Cocinas",
     page_icon="🔥",
     layout="centered"
 )
@@ -75,7 +75,7 @@ def get_auto_dims(cfm_target, velocity_target=2000):
 # --- SIDEBAR ---
 with st.sidebar:
     try:
-        st.image("logo.jpg", use_column_width=True)
+        st.image("logo.jpg", use_column_width=True) 
     except:
         st.header("CS VENTILACIÓN")
         st.caption("Nota: Sube 'logo.jpg' a GitHub.")
@@ -105,6 +105,7 @@ with st.sidebar:
     if len(st.session_state['equipments']) > 0:
         for item in st.session_state['equipments']:
             st.caption(f"🔹 {item['tag']} | {item['cfm']} CFM")
+        
         if st.button("🗑️ Borrar Lista"):
             st.session_state['equipments'] = []
             st.session_state['ve_counter'] = 1
@@ -251,7 +252,7 @@ with tab3:
                 st.session_state['losses'].append({"Item": desc, "Pe": loss})
         
         if st.session_state['losses']:
-            # USO DE DATAFRAME (CORRECCION DE ERROR)
+            # Uso de dataframe para evitar errores de tabla
             df = pd.DataFrame(st.session_state['losses'])
             st.dataframe(df, use_container_width=True)
             
@@ -259,4 +260,25 @@ with tab3:
             st.metric("Presión Estática Total", f"{total_sp:.3f} in wg")
             
             st.markdown("---")
-            st.
+            st.markdown("#### Selección")
+            
+            prioridades = st.multiselect("Prioridades", ["Costo", "Sonido", "Energía"])
+            volt = st.radio("Voltaje", ["Monofásico", "Trifásico"], horizontal=True)
+            ubi = st.radio("Ubicación", ["Interior", "Exterior"], horizontal=True)
+            
+            if st.button("💾 GUARDAR PARTIDA"):
+                tag = f"VE-{st.session_state['ve_counter']:02d}"
+                st.session_state['equipments'].append({
+                    "tag": tag,
+                    "cfm": int(st.session_state['cfm_actual']),
+                    "sp": round(total_sp, 3),
+                    "voltaje": volt,
+                    "ubicacion": ubi,
+                    "app_type": st.session_state.get('current_app_type', 'N/A'),
+                    "prioridades": ", ".join(prioridades)
+                })
+                st.session_state['ve_counter'] += 1
+                st.session_state['losses'] = []
+                st.success("Guardado.")
+        
+        if st.session_state['equipments']:
