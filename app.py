@@ -1,12 +1,10 @@
 import streamlit as st
 import pandas as pd
 import math
-from fpdf import FPDF
-import base64
 
-# --- CONFIGURACIÓN DE LA PÁGINA (REQ #1: MENÚ EXPANDIDO) ---
+# --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="Calculadora Cocinas V4.0",
+    page_title="Calculadora Cocinas V4.1",
     page_icon="🔥",
     layout="centered",
     initial_sidebar_state="expanded"
@@ -27,8 +25,7 @@ st.markdown("""
 if 'equipments' not in st.session_state: st.session_state['equipments'] = []
 if 've_counter' not in st.session_state: st.session_state['ve_counter'] = 1
 
-# --- BASE DE DATOS GEOGRÁFICA (REQ #1: DATOS CLIMÁTICOS) ---
-# Estructura: Estado -> {Ciudad: {alt: msnm, temp: C}}
+# --- BASE DE DATOS GEOGRÁFICA ---
 db_geo = {
     "Sinaloa": {"Culiacán": {"alt": 54, "temp": 36}, "Mazatlán": {"alt": 10, "temp": 32}, "Los Mochis": {"alt": 10, "temp": 35}},
     "Ciudad de México": {"CDMX (Centro)": {"alt": 2240, "temp": 24}, "Santa Fe": {"alt": 2500, "temp": 21}, "Polanco": {"alt": 2250, "temp": 24}},
@@ -41,82 +38,35 @@ db_geo = {
     "Baja California": {"Tijuana": {"alt": 20, "temp": 26}, "Mexicali": {"alt": 8, "temp": 42}, "Ensenada": {"alt": 10, "temp": 24}},
     "Quintana Roo": {"Cancún": {"alt": 10, "temp": 32}, "Playa del Carmen": {"alt": 10, "temp": 32}, "Tulum": {"alt": 10, "temp": 32}},
     "Guanajuato": {"León": {"alt": 1815, "temp": 29}, "Irapuato": {"alt": 1724, "temp": 30}, "Celaya": {"alt": 1750, "temp": 29}},
-    # Se pueden agregar más estados siguiendo esta estructura
+    "Veracruz": {"Veracruz": {"alt": 10, "temp": 30}, "Xalapa": {"alt": 1400, "temp": 24}, "Coatzacoalcos": {"alt": 10, "temp": 32}}
 }
 
-# --- FUNCIÓN GENERADORA DE PDF (REQ #6) ---
-def create_pdf(project_data, location_data, equipments):
-    pdf = FPDF()
-    pdf.add_page()
+# --- FUNCIONES DE CÁLCULO ---
+def get_auto_dims(cfm_target, velocity_target=2000):
+    if cfm_target <= 0: return 6, 6
+    target_area = cfm_target / velocity_target
+    diam_ideal = math.sqrt(target_area * 4 / math.pi) * 12
+    diam_final = round(diam_ideal / 2) * 2
+    if diam_final < 6: diam_final = 6
     
-    # Logo (Usando el nuevo nombre de archivo)
-    try:
-        pdf.image('LOGO ONLINE.jpg', 10, 8, 33)
-    except:
-        pass # Si falla la imagen, no rompe el PDF
-        
-    pdf.ln(25)
-    
-    # Títulos
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "Reporte Técnico de Ventilación", ln=True, align='C')
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 10, "Generado por Calculadora CS Ventilación", ln=True, align='C')
-    pdf.ln(10)
-    
-    # Datos Proyecto
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "1. Datos Generales", ln=True)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 6, f"Proyecto: {project_data.get('nombre', '-')}", ln=True)
-    pdf.cell(0, 6, f"Ubicación: {location_data.get('ciudad_full', '-')}", ln=True)
-    pdf.cell(0, 6, f"Condiciones: Altitud {location_data.get('alt',0)} msnm | Temp {location_data.get('temp',0)} C", ln=True)
-    pdf.ln(10)
-    
-    # Tabla Equipos
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "2. Resumen de Equipos", ln=True)
-    
-    # Encabezados
-    pdf.set_font("Arial", 'B', 9)
-    pdf.cell(20, 8, "TAG", 1)
-    pdf.cell(25, 8, "Caudal", 1)
-    pdf.cell(25, 8, "Presión", 1)
-    pdf.cell(40, 8, "Tipo", 1)
-    pdf.cell(40, 8, "Aplicación", 1) # Req #5
-    pdf.cell(40, 8, "Detalles", 1)
-    pdf.ln()
-    
-    # Filas
-    pdf.set_font("Arial", '', 8)
-    for eq in equipments:
-        pdf.cell(20, 8, str(eq['tag']), 1)
-        pdf.cell(25, 8, f"{eq['cfm']} CFM", 1)
-        pdf.cell(25, 8, f"{eq['sp']} in wg", 1)
-        pdf.cell(40, 8, str(eq['tipo_vent']), 1)
-        pdf.cell(40, 8, str(eq['app_type']), 1) # Req #5
-        pdf.cell(40, 8, f"{eq['voltaje']} | {eq['ubicacion']}", 1)
-        pdf.ln()
-        
-    pdf.ln(10)
-    pdf.set_font("Arial", 'I', 8)
-    pdf.cell(0, 10, "Este reporte es una estimación técnica preliminar. Para selección final contacte a ventas@csventilacion.mx", ln=True, align='C')
-    
-    return pdf.output(dest='S').encode('latin-1')
+    side_ideal = math.sqrt(target_area) * 12
+    side_final = round(side_ideal / 2) * 2
+    if side_final < 6: side_final = 6
+    return int(side_final), int(diam_final)
 
-# --- SIDEBAR (REQ #1) ---
+# --- SIDEBAR ---
 with st.sidebar:
+    # Intento de cargar logo con manejo de errores para que no falle
     try:
         st.image("LOGO ONLINE.jpg", use_column_width=True)
     except:
         st.header("CS VENTILACIÓN")
+        st.caption("Nota: Sube 'LOGO ONLINE.jpg' a GitHub para ver el logo.")
     
     st.markdown("---")
     
-    # Control de visibilidad detalles proyecto (Req #1)
     with st.expander("📍 Detalles del Proyecto", expanded=True):
         nombre_proyecto = st.text_input("Nombre Proyecto", placeholder="Ej. Restaurante Centro")
-        
         pais = st.selectbox("País", ["México", "Otro"])
         
         alt_res = 0
@@ -126,27 +76,20 @@ with st.sidebar:
         if pais == "México":
             estado = st.selectbox("Estado", list(db_geo.keys()))
             ciudad = st.selectbox("Ciudad", list(db_geo[estado].keys()))
-            
             datos = db_geo[estado][ciudad]
             alt_res = datos['alt']
             temp_res = datos['temp']
             ciudad_str = f"{ciudad}, {estado}"
             
-            # Req #1: Mostrar Altitud y Temp resultante
             c1, c2 = st.columns(2)
             with c1: st.metric("Altitud", f"{alt_res} m")
             with c2: st.metric("Temp", f"{temp_res}°C")
-            
         else:
             ciudad_str = st.text_input("Ciudad / Ubicación")
             alt_res = st.number_input("Altitud (msnm)", 0)
             temp_res = st.number_input("Temperatura (°C)", 25)
             
-        st.session_state['loc_data'] = {
-            "ciudad_full": ciudad_str,
-            "alt": alt_res,
-            "temp": temp_res
-        }
+        st.session_state['loc_data'] = {"ciudad_full": ciudad_str, "alt": alt_res, "temp": temp_res}
         st.session_state['proj_name'] = nombre_proyecto
 
     st.markdown("---")
@@ -154,13 +97,12 @@ with st.sidebar:
     if len(st.session_state['equipments']) > 0:
         for item in st.session_state['equipments']:
             st.caption(f"🔹 {item['tag']} | {item['cfm']} CFM")
-        
         if st.button("🗑️ Reiniciar Lista"):
             st.session_state['equipments'] = []
             st.session_state['ve_counter'] = 1
             st.rerun()
 
-# --- HEADER (REQ #3: CAMBIO NOMBRE) ---
+# --- HEADER ---
 st.markdown('<div class="main-header">CALCULADORA PARA COCINAS COMERCIALES</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-header">Partida Actual: <strong>VE-{st.session_state["ve_counter"]:02d}</strong></div>', unsafe_allow_html=True)
 st.markdown("---")
@@ -172,30 +114,26 @@ tab1, tab2, tab3 = st.tabs(["1️⃣ Caudal", "2️⃣ Ductos", "3️⃣ Cierre"
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
-        largo = st.number_input("Largo Campana (m)", 0.5, 10.0, 2.0)
-        ancho = st.number_input("Ancho Campana (m)", 0.5, 5.0, 1.0)
-        # Req #4: Default 1m, steps 0.05
+        largo = st.number_input("Largo Campana (m)", 0.5, 10.0, 2.0, step=0.1)
+        ancho = st.number_input("Ancho Campana (m)", 0.5, 5.0, 1.0, step=0.1)
         distancia = st.number_input("Distancia Captación (m)", 0.1, 2.0, 1.0, step=0.05)
         
     with col2:
-        # Req #6: Nombre ajustado
         instalacion = st.selectbox("Instalación", 
                                    ["Adosada a una pared (3 lados abiertos)", 
                                     "Isla (4 lados abiertos)", 
                                     "Esquina (2 lados abiertos)"])
         
-        # Req #5: Especificar equipos
         apps = {
             "Light Duty (Hornos, Vapor, Marmitas, Lavaplatos)": 0.25,
             "Medium Duty (Estufas, Planchas, Freidoras pequeñas)": 0.35,
             "Heavy Duty (Parrillas gas, Carbón, Freidoras alto volumen)": 0.40,
             "Extra Heavy Duty (Wok, Leña sólida, Espadas, Mesquite)": 0.50
         }
-        app_key = st.selectbox("Aplicación (Tipo de Cocción)", list(apps.keys()))
+        app_key = st.selectbox("Aplicación", list(apps.keys()))
         vc_val = apps[app_key]
-        st.session_state['current_app_type'] = app_key # Guardar para Req #5
+        st.session_state['current_app_type'] = app_key
         
-    # Cálculo
     if "Isla" in instalacion: P = (2*largo) + (2*ancho)
     elif "Adosada" in instalacion: P = (2*ancho) + largo
     else: P = ancho + largo
@@ -203,15 +141,14 @@ with tab1:
     Q_m3s = (P * distancia) * vc_val
     Q_cfm = (Q_m3s * 3600) / 1.699
     
-    st.info(f"Velocidad de Captación seleccionada: **{vc_val} m/s** (Según Manual CS/S&P)")
+    st.info(f"Velocidad de Captación seleccionada: **{vc_val} m/s**")
     
     col_res1, col_res2 = st.columns([1,2])
-    with col_res1:
-        st.metric("Perímetro Libre", f"{P:.2f} m")
+    with col_res1: st.metric("Perímetro Libre", f"{P:.2f} m")
     with col_res2:
         st.markdown(f"""
         <div style="background-color: #0E4F8F; color: white; padding: 10px; border-radius: 5px; text-align: center;">
-            <small>Caudal Calculado</small><br>
+            <small>Caudal Requerido</small><br>
             <strong style="font-size: 24px;">{int(Q_cfm)} CFM</strong>
         </div>
         """, unsafe_allow_html=True)
@@ -220,30 +157,24 @@ with tab1:
         st.session_state['cfm_actual'] = int(Q_cfm)
         st.success("Caudal fijado.")
 
-# --- TAB 2: DUCTOS (REQ #2: NUEVOS RANGOS Y MENSAJES) ---
+# --- TAB 2: DUCTOS ---
 with tab2:
     cfm_val = st.number_input("Caudal (CFM)", value=st.session_state.get('cfm_actual', 0))
     
     if cfm_val > 0:
-        # Autodimensionamiento para 2000 FPM
-        area_ideal = cfm_val / 2000
-        side_ideal = round((math.sqrt(area_ideal) * 12) / 2) * 2
-        diam_ideal = round((math.sqrt(area_ideal * 4 / math.pi) * 12) / 2) * 2
-        if side_ideal < 6: side_ideal = 6
-        if diam_ideal < 6: diam_ideal = 6
-        
+        ideal_side, ideal_diam = get_auto_dims(cfm_val, 2000)
         c_dim, c_res = st.columns([2,1])
         
         with c_dim:
             forma = st.radio("Forma", ["Rectangular", "Circular"], horizontal=True)
             if forma == "Rectangular":
                 c1, c2 = st.columns(2)
-                with c1: w = st.number_input("Ancho (in)", 4, 100, int(side_ideal), step=2)
-                with c2: h = st.number_input("Alto (in)", 4, 100, int(side_ideal), step=2)
+                with c1: w = st.number_input("Ancho (in)", 4, 100, int(ideal_side), step=2)
+                with c2: h = st.number_input("Alto (in)", 4, 100, int(ideal_side), step=2)
                 area_ft2 = (w*h)/144
                 de = 1.3 * ((w*h)**0.625) / ((w+h)**0.25)
             else:
-                d = st.number_input("Diámetro (in)", 4, 100, int(diam_ideal), step=2)
+                d = st.number_input("Diámetro (in)", 4, 100, int(ideal_diam), step=2)
                 area_ft2 = (math.pi*(d/12)**2)/4
                 de = d
                 
@@ -254,8 +185,127 @@ with tab2:
             st.metric("Velocidad", f"{int(vel)} FPM")
             st.caption(f"De: {de:.1f}\" | Pd: {pd:.3f} in")
             
-        # REQ #2: Lógica de Semáforos Actualizada
         if vel < 1500:
             st.markdown('<div class="danger-box">⚠️ <strong>VELOCIDAD BAJA (< 1500 FPM)</strong><br>Peligro crítico de acumulación de grasa e incendio. Reduzca dimensiones.</div>', unsafe_allow_html=True)
         elif 1500 <= vel <= 2500:
-            st.markdown('<div class="success-box">✅ <strong>VELOCIDAD IDEAL (1500-2500 FPM)</strong><br>Rango óptimo para transporte de vapores de grasa.</div>', unsafe_allow_
+            st.markdown('<div class="success-box">✅ <strong>VELOCIDAD IDEAL (1500-2500 FPM)</strong><br>Rango óptimo para transporte de vapores de grasa.</div>', unsafe_allow_html=True)
+        elif 2500 < vel <= 4000:
+            st.markdown('<div class="warning-box">⚠️ <strong>ALTA VELOCIDAD (> 2500 FPM)</strong><br>Nivel de ruido y de presión estática excesiva, alto consumo energético.</div>', unsafe_allow_html=True)
+        else:
+            st.error("⛔ VELOCIDAD NO ADMISIBLE (> 4000 FPM). Cálculo fuera de norma.")
+            
+        st.session_state['vel_actual'] = vel
+        st.session_state['pd_ref'] = pd
+        st.session_state['de_ref'] = de
+    else:
+        st.info("Calcula el caudal primero.")
+
+# --- TAB 3: CIERRE ---
+with tab3:
+    if st.session_state.get('vel_actual', 0) > 0 and st.session_state.get('vel_actual', 0) <= 4000:
+        pd_ref = st.session_state['pd_ref']
+        de_ref = st.session_state['de_ref']
+        
+        st.markdown(f"**Cálculo de Pérdidas** (Pd: {pd_ref:.3f})")
+        if 'losses' not in st.session_state: st.session_state['losses'] = []
+        
+        c_in1, c_in2, c_btn = st.columns([3, 2, 1])
+        with c_in1:
+            comp = st.selectbox("Accesorio", ["Tramos Rectos (Metros)", "Codo", "Dispositivo de Captación", "Filtro Inercial de Grasa Tipo Bafle", "Ampliación", "Reducción", "Otras Pérdidas"])
+            ang, rad = None, None
+            if comp == "Codo":
+                c1, c2 = st.columns(2)
+                with c1: ang = st.selectbox("Ángulo", ["90°", "45°", "30°"])
+                with c2: rad = st.selectbox("Radio", ["Largo", "Corto"])
+        
+        with c_in2:
+            if "Tramos" in comp: val = st.number_input("Longitud (m)", 0.0, 500.0, 1.0, step=0.5)
+            elif "Otras" in comp: val = st.number_input("Presión (in wg)", 0.0, 5.0, 0.1, step=0.1)
+            else: val = st.number_input("Cantidad", 1, 100, 1)
+                
+        with c_btn:
+            st.write("")
+            st.write("")
+            if st.button("➕"):
+                loss = 0
+                desc = ""
+                if "Tramos" in comp:
+                    ft = val * 3.281
+                    loss = (0.018 * (ft/(de_ref/12))) * pd_ref
+                    desc = f"Tramo Recto ({val}m)"
+                elif comp == "Codo":
+                    n = 0.30
+                    if ang == "90°": n = 0.30 if rad == "Largo" else 0.50
+                    elif ang == "45°": n = 0.18
+                    elif ang == "30°": n = 0.12
+                    loss = n * pd_ref * val
+                    desc = f"Codo {ang} {rad} ({val})"
+                elif "Captación" in comp:
+                    loss = 0.50 * pd_ref * val
+                    desc = f"Entrada Campana ({val})"
+                elif "Filtro" in comp:
+                    loss = 0.50 * val
+                    desc = f"Filtro Inercial Bafle ({val})"
+                elif "Ampliación" in comp:
+                    loss = 0.55 * pd_ref * val
+                    desc = f"Ampliación ({val})"
+                elif "Reducción" in comp:
+                    loss = 0.05 * pd_ref * val
+                    desc = f"Reducción ({val})"
+                elif "Otras" in comp:
+                    loss = val
+                    desc = "Pérdida Manual"
+                st.session_state['losses'].append({"Item": desc, "Pe": loss})
+        
+        if st.session_state['losses']:
+            st.table(pd.DataFrame(st.session_state['losses']))
+            total_sp = sum(item['Pe'] for item in st.session_state['losses'])
+            st.metric("Presión Estática Total", f"{total_sp:.3f} in wg")
+            
+            st.markdown("---")
+            st.markdown("#### Selección de Equipo")
+            
+            prioridades = st.multiselect("Prioridades (Máx 2)", ["Costo Inicial", "Nivel Sonoro", "Consumo Energético"], max_selections=2)
+            tipo_vent = st.radio("Tipo de Ventilador", ["Hongo (Tejado)", "Ventset (Centrífugo)", "Tuboaxial"], horizontal=True)
+            c_elec, c_ubi = st.columns(2)
+            with c_elec: volt = st.radio("Voltaje", ["Monofásico", "Trifásico"])
+            with c_ubi: ubi = st.radio("Ubicación", ["Interior", "Exterior"])
+            
+            if st.button("💾 GUARDAR PARTIDA"):
+                tag = f"VE-{st.session_state['ve_counter']:02d}"
+                st.session_state['equipments'].append({
+                    "tag": tag,
+                    "cfm": int(st.session_state['cfm_actual']),
+                    "sp": round(total_sp, 3),
+                    "tipo_vent": tipo_vent,
+                    "voltaje": volt,
+                    "ubicacion": ubi,
+                    "app_type": st.session_state.get('current_app_type', 'N/A'),
+                    "prioridades": ", ".join(prioridades)
+                })
+                st.session_state['ve_counter'] += 1
+                st.session_state['losses'] = []
+                st.success("Partida Guardada.")
+                
+        if st.session_state['equipments']:
+            st.markdown("---")
+            st.markdown("### 📤 Finalizar")
+            
+            # Resumen visual para imprimir
+            with st.expander("📄 Ver Resumen para Imprimir", expanded=False):
+                st.markdown("### CS SISTEMAS DE AIRE - RESUMEN DE PROYECTO")
+                st.markdown(f"**Proyecto:** {st.session_state.get('proj_name')} | **Ubicación:** {st.session_state['loc_data']['ciudad_full']}")
+                st.markdown(f"**Condiciones:** Alt {st.session_state['loc_data']['alt']}m | Temp {st.session_state['loc_data']['temp']}C")
+                st.table(pd.DataFrame(st.session_state['equipments']))
+                st.caption("Presiona Ctrl + P para imprimir esta vista o guardarla como PDF.")
+            
+            loc = st.session_state['loc_data']
+            body = f"Hola Ing. Sotelo,%0D%0A%0D%0AAdjunto resumen para el proyecto {st.session_state.get('proj_name', '')}.%0D%0A"
+            body += f"Ubicación: {loc.get('ciudad_full')} (Alt: {loc.get('alt')}m | Temp: {loc.get('temp')}C).%0D%0A%0D%0A"
+            for eq in st.session_state['equipments']:
+                body += f"[{eq['tag']}] {eq['cfm']} CFM @ {eq['sp']}\" | {eq['tipo_vent']} | App: {eq['app_type']} | {eq['voltaje']}%0D%0A"
+            
+            st.markdown(f'<a href="mailto:ventas@csventilacion.mx?subject=Cotización {st.session_state.get("proj_name")}&body={body}" style="display: inline-block; background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; width: 100%; text-align: center;">📧 ENVIAR POR CORREO</a>', unsafe_allow_html=True)
+
+    else:
+        st.info("Corrige la velocidad o calcula el caudal primero.")
