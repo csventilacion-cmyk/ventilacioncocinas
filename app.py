@@ -161,10 +161,10 @@ with tab1:
                                     "Campana adosada a 2 muros"])
         
         apps = {
-            "Light Duty (Hornos, Vapor, Marmitas)": 0.25,
-            "Medium Duty (Estufas, Planchas)": 0.35,
-            "Heavy Duty (Parrillas, Carbón)": 0.40,
-            "Extra Heavy Duty (Wok, Leña)": 0.50
+            "Light Duty (Estufas, Hornos Eléctricos)": 0.25,
+            "Medium Duty (Freidora, Planchas)": 0.3125,
+            "Heavy Duty (Parrilla, Wok)": 0.375,
+            "Extra Heavy Duty (Parrillas Carbón)": 0.4375
         }
         app_key = st.selectbox("Aplicación", list(apps.keys()))
         vc_val = apps[app_key]
