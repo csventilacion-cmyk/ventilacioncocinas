@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import math
 import urllib.parse
+import os
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(
@@ -10,6 +11,27 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded"
 )
+
+# --- 1.5. AUTENTICACIÓN (NUEVO BLOQUE) ---
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    if os.path.exists("logo.jpg"):
+        st.image("logo.jpg", width=250)
+    elif os.path.exists("logo.png"):
+        st.image("logo.png", width=250)
+        
+    st.markdown("### 🔐 Acceso a Calculadora de Cocinas")
+    pwd = st.text_input("Clave de acceso", type="password")
+    
+    if st.button("Ingresar"):
+        if pwd == "CSSISTEMAS26":
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Clave incorrecta. Acceso denegado.")
+    st.stop()
 
 # --- 2. ESTILOS ---
 st.markdown("""
